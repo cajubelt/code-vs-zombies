@@ -1,14 +1,18 @@
 
-// const ZOMBIE_DIST_PER_TURN = 400
-// const PLAYER_DIST_PER_TURN = 1000
+const ZOMBIE_DIST_PER_TURN = 400
+const PLAYER_DIST_PER_TURN = 1000
 
-interface CharacterPosition {
-  id: number
+interface Position {
   x: number
   y: number
 }
 
-function getDistance(a: CharacterPosition, b: CharacterPosition): number {
+
+type CharacterPosition = {
+  id: number
+} & Position
+
+function getDistance(a: Position, b: Position): number {
   return Math.abs(a.x - b.x) + Math.abs(a.y - b.y)
 }
 
@@ -27,10 +31,29 @@ function getHumanZombieDistances(humans: CharacterPosition[], zombiesCur: Charac
   return output
 }
 
-function getMostImperiledHuman(humanZombieDistances: HumanZombieDistances): number {
+function getMostImperiledSavableHuman(humanZombieDistances: HumanZombieDistances, zombies: CharacterPosition[], player: {x: number, y: number}): number {
+  // fixme failing "simple" test case :(
   const humanIds = Object.keys(humanZombieDistances)
+  const zombieIds = zombies.map(({id}) => id)
+  const playerZombieDistances = zombies.reduce((acc, zombie) => {
+    acc[zombie.id] = getDistance(player, zombie)
+    return acc
+  }, {} as Record<string, number>)
   return humanIds.reduce((prev: {minDist: number, humanId: number}, cur: string) => {
-    const minDist = Math.min(...Object.values(humanZombieDistances[cur]))
+    const zombieDistances = humanZombieDistances[cur]
+    let minDist = Infinity
+    for (const zombieId of zombieIds) {
+      const zombieDistance = zombieDistances[zombieId]
+      const playerZombieDistance = playerZombieDistances[zombieId]
+      if (
+        (playerZombieDistance / PLAYER_DIST_PER_TURN) < (zombieDistance / ZOMBIE_DIST_PER_TURN) &&
+        zombieDistance < minDist
+      ) {
+        // if the zombie is targeting this human, they are too far to save
+        // todo could be a bit better to only consider humans that are targeted by the zombie
+        minDist = zombieDistance
+      }
+    }
     return (prev.minDist > minDist) ? {humanId: parseInt(cur), minDist} : prev
   }, {minDist: Infinity, humanId: -1}).humanId
 }
@@ -50,7 +73,8 @@ export function getNextMove({
   zombiesNext: Record<number, CharacterPosition>,
   humanCount: number
 }){
-  const closestHumanId = getMostImperiledHuman(getHumanZombieDistances(Object.values(humans), Object.values(zombiesCur)))
+  const zombies = Object.values(zombiesCur)
+  const closestHumanId = getMostImperiledSavableHuman(getHumanZombieDistances(Object.values(humans), zombies), zombies, {x: curX, y: curY})
   const closestHuman = humans[closestHumanId]
   let nextX = closestHuman.x
   let nextY = closestHuman.y
