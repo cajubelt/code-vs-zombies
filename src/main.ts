@@ -12,8 +12,8 @@ type CharacterPosition = {
   id: number
 } & Position
 
-function getDistance(a: Position, b: Position): number {
-  return Math.round(Math.sqrt((a.x - b.x)**2 + (a.y - b.y)**2))
+export function getDistance(a: Position, b: Position): number {
+  return (Math.sqrt((a.x - b.x)**2 + (a.y - b.y)**2))
 }
 
 // maps human ID to zombie ID to distance between human, zombie
@@ -38,7 +38,7 @@ function getMostImperiledSavableHuman(humanZombieDistances: HumanZombieDistances
     acc[human.id] = getDistance(player, human)
     return acc
   }, {} as Record<string, number>)
-  let mostImperiledHumanId: string = dummyId
+  let mostImperiledHumanId: number = humans[0].id
   let mostImperiledHumanZombieDist: number = Infinity
   for (const [humanId, zombieDistances] of Object.entries(humanZombieDistances)) {
     // find closest zombie to this human
@@ -53,20 +53,14 @@ function getMostImperiledSavableHuman(humanZombieDistances: HumanZombieDistances
     
     // if human first seen, or savable and closest to a zombie, update mostImperiledHumanId
     const playerHumanDistance = playerHumanDistances[humanId]
-    const savable = playerHumanDistance / PLAYER_DIST_PER_TURN < closestZombieDist / ZOMBIE_DIST_PER_TURN
+    const savable = Math.ceil(playerHumanDistance / PLAYER_DIST_PER_TURN) <= Math.ceil(closestZombieDist / ZOMBIE_DIST_PER_TURN)
     const closestToAZombie = closestZombieDist < mostImperiledHumanZombieDist
-    if (
-      mostImperiledHumanId === dummyId ||
-      (closestToAZombie && savable)
-    ) {
-      mostImperiledHumanId = humanId
+    if (closestToAZombie && savable) {
+      mostImperiledHumanId = parseInt(humanId)
       mostImperiledHumanZombieDist = closestZombieDist
     }
   }
-  if (mostImperiledHumanId === dummyId) {
-    throw new Error('Got dummyId for most imperiled human. Probably got an empty set of zombie IDs for some human.')
-  }
-  return parseInt(mostImperiledHumanId)
+  return mostImperiledHumanId
 }
 
 export function getNextMove({
